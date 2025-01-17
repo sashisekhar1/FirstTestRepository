@@ -1,1 +1,307 @@
 https://cf-courses-data.static.labs.skills.network/jupyterlite/2.5.5/lab/index.html?path=DS0103EN%2Flabs%2FModule+4%2FModel_making_and_Evaluate.ipynb
+Using this notebook:
+To run any of the following cells of code, you can type Shift + Enter to excute the code in a cell.
+
+First, download the library and dependencies that you will need to run this lab.
+
+code 1
+import pandas as pd # import library to read data into dataframe
+pd.set_option("display.max_columns", None)
+import numpy as np # import numpy library
+import re # import library for regular expression
+import random # library for random number generation
+
+code 2
+from pyodide.http import pyfetch
+ 
+async def download(url, filename):
+    response = await pyfetch(url)
+    if response.status == 200:
+        with open(filename, "wb") as f:
+            f.write(await response.bytes())
+ 
+path = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-DS0103EN-SkillsNetwork/labs/Module%202/recipes.csv"
+ 
+#you will need to download the dataset; if you are running locally, please comment out the following 
+await download(path, "recipes.csv")
+
+
+We already placed the data on an IBM server for your convenience, so download the data from the server and read the data into a dataframe called recipes.
+
+code 3
+recipes = pd.read_csv("recipes.csv")
+
+print("Data read into dataframe!") # takes about 30 seconds
+
+
+
+Next, repeat the preprocessing steps that you implemented in the lab From Understanding to Preparation to prepare the data for modeling. For more details on preparing the data, please refer to the Lab From Understanding to Preparation.
+
+code 4
+# fix name of the column displaying the cuisine
+column_names = recipes.columns.values
+column_names[0] = "cuisine"
+recipes.columns = column_names
+
+# convert cuisine names to lower case
+recipes["cuisine"] = recipes["cuisine"].str.lower()
+
+# make the cuisine names consistent
+recipes.loc[recipes["cuisine"] == "austria", "cuisine"] = "austrian"
+recipes.loc[recipes["cuisine"] == "belgium", "cuisine"] = "belgian"
+recipes.loc[recipes["cuisine"] == "china", "cuisine"] = "chinese"
+recipes.loc[recipes["cuisine"] == "canada", "cuisine"] = "canadian"
+recipes.loc[recipes["cuisine"] == "netherlands", "cuisine"] = "dutch"
+recipes.loc[recipes["cuisine"] == "france", "cuisine"] = "french"
+recipes.loc[recipes["cuisine"] == "germany", "cuisine"] = "german"
+recipes.loc[recipes["cuisine"] == "india", "cuisine"] = "indian"
+recipes.loc[recipes["cuisine"] == "indonesia", "cuisine"] = "indonesian"
+recipes.loc[recipes["cuisine"] == "iran", "cuisine"] = "iranian"
+recipes.loc[recipes["cuisine"] == "italy", "cuisine"] = "italian"
+recipes.loc[recipes["cuisine"] == "japan", "cuisine"] = "japanese"
+recipes.loc[recipes["cuisine"] == "israel", "cuisine"] = "jewish"
+recipes.loc[recipes["cuisine"] == "korea", "cuisine"] = "korean"
+recipes.loc[recipes["cuisine"] == "lebanon", "cuisine"] = "lebanese"
+recipes.loc[recipes["cuisine"] == "malaysia", "cuisine"] = "malaysian"
+recipes.loc[recipes["cuisine"] == "mexico", "cuisine"] = "mexican"
+recipes.loc[recipes["cuisine"] == "pakistan", "cuisine"] = "pakistani"
+recipes.loc[recipes["cuisine"] == "philippines", "cuisine"] = "philippine"
+recipes.loc[recipes["cuisine"] == "scandinavia", "cuisine"] = "scandinavian"
+recipes.loc[recipes["cuisine"] == "spain", "cuisine"] = "spanish_portuguese"
+recipes.loc[recipes["cuisine"] == "portugal", "cuisine"] = "spanish_portuguese"
+recipes.loc[recipes["cuisine"] == "switzerland", "cuisine"] = "swiss"
+recipes.loc[recipes["cuisine"] == "thailand", "cuisine"] = "thai"
+recipes.loc[recipes["cuisine"] == "turkey", "cuisine"] = "turkish"
+recipes.loc[recipes["cuisine"] == "vietnam", "cuisine"] = "vietnamese"
+recipes.loc[recipes["cuisine"] == "uk-and-ireland", "cuisine"] = "uk-and-irish"
+recipes.loc[recipes["cuisine"] == "irish", "cuisine"] = "uk-and-irish"
+
+
+# remove data for cuisines with < 50 recipes:
+recipes_counts = recipes["cuisine"].value_counts()
+cuisines_indices = recipes_counts > 50
+
+cuisines_to_keep = list(np.array(recipes_counts.index.values)[np.array(cuisines_indices)])
+recipes = recipes.loc[recipes["cuisine"].isin(cuisines_to_keep)]
+
+# convert all Yes's to 1's and the No's to 0's
+recipes = recipes.replace(to_replace="Yes", value=1)
+recipes = recipes.replace(to_replace="No", value=0)
+
+
+Data Modeling
+https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-DS0103EN-SkillsNetwork/labs/Module%204/images/flowchart_data_modeling.png
+
+Now download and install more libraries and dependencies to build decision trees.
+
+code 5
+acy_score, confusion_matrix
+
+import matplotlib.pyplot as plt
+
+# If running locally, you can try using the graphviz library but we'll use sklearn's plot_tree method
+# !conda install python-graphviz --yes
+# from sklearn.tree import export_graphviz
+
+
+Check the data again!
+recipes.head()
+
+[bamboo_tree] Only Asian and Indian Cuisines
+Here, you are creating a decision tree for the recipes for just some of the Asian (Korean, Japanese, Chinese, Thai) and Indian cuisines. The reason this action is because the decision tree does not run well when the data is biased towards one cuisine or a group of cuisines, such as in this case, American cuisines. We can exclude the American cuisines from our analysis or just build decision trees for different subsets of the data. Let's go with the second solution.
+
+Let's build our decision tree using the data pertaining to the Asian and Indian cuisines and name our decision tree bamboo_tree.
+
+
+code 6
+# select subset of cuisines
+asian_indian_recipes = recipes[recipes.cuisine.isin(["korean", "japanese", "chinese", "thai", "indian"])]
+cuisines = asian_indian_recipes["cuisine"]
+ingredients = asian_indian_recipes.iloc[:,1:]
+
+bamboo_tree = tree.DecisionTreeClassifier(max_depth=3)
+bamboo_tree.fit(ingredients, cuisines)
+
+print("Decision tree model saved to bamboo_tree!")
+
+
+Let's plot the decision tree and examine what the decision tree looks like.
+
+code 7
+# if you're using the graphviz library, you can run these lines of code. Otherwise, this is configured to use plot_tree from sklearn
+# export_graphviz(bamboo_tree,
+#                 feature_names=list(ingredients.columns.values),
+#                 out_file="bamboo_tree.dot",
+#                 class_names=np.unique(cuisines),
+#                 filled=True,
+#                 node_ids=True,
+#                 special_characters=True,
+#                 impurity=False,
+#                 label="all",
+#                 leaves_parallel=False)
+
+# with open("bamboo_tree.dot") as bamboo_tree_image:
+#     bamboo_tree_graph = bamboo_tree_image.read()
+# graphviz.Source(bamboo_tree_graph)
+
+plt.figure(figsize=(40,20))  # customize according to the size of your tree
+_ = tree.plot_tree(bamboo_tree,
+                   feature_names = list(ingredients.columns.values),
+                   class_names=np.unique(cuisines),filled=True,
+                   node_ids=True,
+                   impurity=False,
+                   label="all",
+                   fontsize=20, rounded = True)
+plt.show()
+
+
+The decision tree learned:
+
+If a recipe contains cumin and fish and no yoghurt, then it is most likely a Thai recipe.
+If a recipe contains cumin but no fish and no soy_sauce, then it is most likely an Indian recipe.
+You can analyze the remaining branches of the tree to come up with similar rules for determining the cuisine of different recipes.
+
+Feel free to select another subset of cuisines and build a decision tree of their recipes. You can select some European cuisines and build decision trees to explore the ingredients that differentiate those cuisines.
+
+
+
+
+Model Evaluation
+https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-DS0103EN-SkillsNetwork/labs/Module%204/images/flowchart_evaluation.png
+
+Next, to evaluate our model of Asian and Indian cuisines, you will split the data set into a training set and a test set. You will build the decision tree using the training set. Then, you will test the model on the test set and compare the cuisines that the model predicts to the actual cuisines.
+
+First create a new dataframe using only the data pertaining to the Asian and the Indian cuisines, and let's call the new dataframe bamboo.
+
+code 8
+bamboo = recipes[recipes.cuisine.isin(["korean", "japanese", "chinese", "thai", "indian"])]
+
+Let's remove 30 recipes from each cuisine to use as the test set, and let's name this test set bamboo_test.
+
+code 9
+# set sample size
+sample_n = 30
+
+Next, create a dataframe containing 30 recipes from each cuisine, selected randomly.
+
+code 10
+# take 30 recipes from each cuisine
+random.seed(1234) # set random seed
+bamboo_test = bamboo.groupby("cuisine", group_keys=False).apply(lambda x: x.sample(sample_n))
+
+bamboo_test_ingredients = bamboo_test.iloc[:,1:] # ingredients
+bamboo_test_cuisines = bamboo_test["cuisine"] # corresponding cuisines or labels
+
+
+Check that there are 30 recipes for each cuisine.
+
+# check that we have 30 recipes from each cuisine
+bamboo_test["cuisine"].value_counts()
+
+Now create the training set by removing the test set from the bamboo data set, and name the training set bamboo_train.
+
+bamboo_test_index = bamboo.index.isin(bamboo_test.index)
+bamboo_train = bamboo[~bamboo_test_index]
+
+bamboo_train_ingredients = bamboo_train.iloc[:,1:] # ingredients
+bamboo_train_cuisines = bamboo_train["cuisine"] # corresponding cuisines or labels
+
+Verify that there are 30 fewer recipes now for each cuisine.
+
+bamboo_train["cuisine"].value_counts()
+
+Let's build the decision tree using the training set, **bamboo_train**, and name the generated tree **bamboo_train_tree** for prediction.
+
+
+bamboo_train_tree = tree.DecisionTreeClassifier(max_depth=15)
+bamboo_train_tree.fit(bamboo_train_ingredients, bamboo_train_cuisines)
+
+print("Decision tree model saved to bamboo_train_tree!")
+
+Let's plot the decision tree and explore it.
+
+
+# export_graphviz(bamboo_train_tree,
+#                 feature_names=list(bamboo_train_ingredients.columns.values),
+#                 out_file="bamboo_train_tree.dot",
+#                 class_names=np.unique(bamboo_train_cuisines),
+#                 filled=True,
+#                 node_ids=True,
+#                 special_characters=True,
+#                 impurity=False,
+#                 label="all",
+#                 leaves_parallel=False)
+
+# with open("bamboo_train_tree.dot") as bamboo_train_tree_image:
+#     bamboo_train_tree_graph = bamboo_train_tree_image.read()
+# graphviz.Source(bamboo_train_tree_graph)
+
+plt.figure(figsize=(40,20))  # customize according to the size of your tree
+_ = tree.plot_tree(bamboo_train_tree,
+                   feature_names=list(bamboo_train_ingredients.columns.values),
+                   class_names=np.unique(bamboo_train_cuisines),
+                   filled=True,
+                   node_ids=True,
+                   impurity=False,
+                   label="all",
+                   fontsize=10, rounded = True)
+plt.show()
+
+
+
+Now that you defined our tree to be deeper, more decision nodes are generated.
+
+Now let's test our model on the test data.
+
+
+bamboo_pred_cuisines = bamboo_train_tree.predict(bamboo_test_ingre
+
+To quantify how well the decision tree is able to determine the cuisine of each recipe correctly, we will create a confusion matrix which presents a nice summary on how many recipes from each cuisine are correctly classified. It also sheds some light on what cuisines are being confused with what other cuisines.
+
+
+So let's go ahead and create the confusion matrix for how well the decision tree is able to correctly classify the recipes in bamboo_test.
+
+
+
+test_cuisines = np.unique(bamboo_test_cuisines)
+bamboo_confusion_matrix = confusion_matrix(bamboo_test_cuisines, bamboo_pred_cuisines, labels = test_cuisines)
+title = 'Bamboo Confusion Matrix'
+cmap = plt.cm.Blues
+
+plt.figure(figsize=(8, 6))
+bamboo_confusion_matrix = (
+    bamboo_confusion_matrix.astype('float') / bamboo_confusion_matrix.sum(axis=1)[:, np.newaxis]
+    ) * 100
+
+plt.imshow(bamboo_confusion_matrix, interpolation='nearest', cmap=cmap)
+plt.title(title)
+plt.colorbar()
+tick_marks = np.arange(len(test_cuisines))
+plt.xticks(tick_marks, test_cuisines)
+plt.yticks(tick_marks, test_cuisines)
+
+fmt = '.2f'
+thresh = bamboo_confusion_matrix.max() / 2.
+for i, j in itertools.product(range(bamboo_confusion_matrix.shape[0]), range(bamboo_confusion_matrix.shape[1])):
+    plt.text(j, i, format(bamboo_confusion_matrix[i, j], fmt),
+             horizontalalignment="center",
+             color="white" if bamboo_confusion_matrix[i, j] > thresh else "black")
+
+plt.tight_layout()
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+
+plt.show()
+
+
+After running the above code, you should get a confusion matrix similar to the following:
+
+https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-DS0103EN-SkillsNetwork/labs/Module%204/images/lab4_fig6_confusion_matrix.png
+
+
+
+The rows represent the actual cuisines from the dataset and the columns represent the predicted ones. Each row should sum to 100%. According to this confusion matrix, we make the following observations:
+
+Using the first row in the confusion matrix, 60% of the Chinese recipes in bamboo_test were correctly classified by our decision tree whereas 37% of the Chinese recipes were misclassified as Korean and 3% were misclassified as Indian.
+
+Using the Indian row, 77% of the Indian recipes in bamboo_test were correctly classified by our decision tree and 3% of the Indian recipes were misclassified as Chinese and 13% were misclassified as Korean and 7% were misclassified as Thai.
